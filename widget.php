@@ -2,7 +2,7 @@
 /*
 * Plugin Name:       Telegram Channel Last Post
 * Description:       Get las post from a Telegram channel_username and ad a widget
-* Version:           0.0.3
+* Version:           0.0.4
 * Author:            Michel Romero
 * Author URI:        https://github.com/studentenherz
 * License:           GPL v2 or later
@@ -84,6 +84,8 @@ class TelegramChannelLastPostWidget extends WP_Widget {
                 $widget_content = file_get_contents('https://t.me/'.$post_link.'?embed=1&userpic=false&color='.$color);
 
                 $widget_content = $this->removeFaviconLinks($widget_content);
+				$widget_content = $this->removeBaseTargetBlank($widget_content);
+				$widget_content = $this->addTargetBlankToAllLinks($widget_content);
 
                 $pattern = '/url\(([\'"]https?:\/\/.*?)\)/';
                 preg_match_all($pattern, $widget_content, $matches);
@@ -145,6 +147,52 @@ class TelegramChannelLastPostWidget extends WP_Widget {
     
             return $doc->saveHTML();
         }
+
+		private function removeBaseTargetBlank($html) {
+			$doc = new DOMDocument();
+			libxml_use_internal_errors(true); // Ignore HTML parsing errors
+			$doc->loadHTML($html);
+			libxml_clear_errors();
+
+			$baseElements = $doc->getElementsByTagName('base');
+			$baseToRemove = array();
+
+			foreach ($baseElements as $base) {
+					$targetValue = $base->getAttribute('target');
+					if (strpos($targetValue, '_blank') !== false) {
+							$baseToRemove[] = $base;
+					}
+			}
+
+			foreach ($baseToRemove as $base) {
+					$base->parentNode->removeChild($base);
+			}
+
+			return $doc->saveHTML();
+		}
+
+		private function addTargetBlankToAllLinks($html) {
+			$doc = new DOMDocument();
+			libxml_use_internal_errors(true); // Ignore HTML parsing errors
+			$doc->loadHTML($html);
+			libxml_clear_errors();
+
+			$linkElements = $doc->getElementsByTagName('a');
+			$linksToAddTargetBlank = array();
+
+			foreach ($linkElements as $link) {
+					$targetValue = $link->getAttribute('target');
+					if (empty($targetValue)) {
+							$linksToAddTargetBlank[] = $link;
+					}
+			}
+
+			foreach ($linksToAddTargetBlank as $link) {
+					$link->setAttribute('target', '_blank');
+			}
+
+			return $doc->saveHTML();
+		}
     
 }
 
